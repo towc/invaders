@@ -75,7 +75,7 @@
             this.bullets = [];
             this.upgrades = [];
             
-            this.drawer.upgrades.childNodes = [];
+            while(this.drawer.upgrades.firstChild) this.drawer.upgrades.removeChild(this.drawer.upgrades.firstChild);
             
             this.lastTick = Date.now();
             
