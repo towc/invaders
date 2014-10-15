@@ -538,7 +538,7 @@
         update:function(){
             this.vel.update();
             
-            if(this.pos.y > game.hh) this.use();
+            if(this.pos.y > game.hh) this.remove();
         },
         use:function(){
             var img=document.createElement('img');
@@ -546,6 +546,10 @@
             game.drawer.upgrades.appendChild(img);
             
             game.drawer.upgrade();
+            
+            this.remove();
+        },
+        remove: function(){
             
             game.upgrades.splice(game.upgrades.indexOf(this), 1);
         }
