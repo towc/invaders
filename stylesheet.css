@@ -28,7 +28,7 @@ canvas{
 #bar > li{
     flex:1;
 }
-#controls, #gameOver, #pause, #waveName, #shock{
+#controls, #gameOver, #pause, #waveName, #shock, #sound{
     background-color:rgba(100, 100, 100, 0.8);
     position:absolute;
     top:0px;
@@ -48,7 +48,11 @@ canvas{
     vertical-align:middle;
     font-size:40px;
 }
-#controls.display, #gameOver.display, #pause.display, #waveName.display, #shock.display{
+#sound{
+    width:auto;
+    height:auto;
+}
+#controls.display, #gameOver.display, #pause.display, #waveName.display, #shock.display, #sound.display{
     opacity:1;
 }
 #controls > p{

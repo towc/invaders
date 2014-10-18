@@ -35,6 +35,7 @@
         this.upgradables=['shootSpeed', 'bulletsCount', 'power', 'bulletSpeed', 'pierce', 'health', 'speed'];
         
         this.drawer = new Drawer(canvasId, this);
+        this.sounds = new Sounds(this);
     }
     Game.prototype = {
         start: function(loop){
@@ -44,6 +45,7 @@
             this.invaders = [];
             this.bullets = [];
             this.upgrades = [];
+            this.explosions = [];
             
             while(this.drawer.upgradesEl.firstChild) this.drawer.upgradesEl.removeChild(this.drawer.upgradesEl.firstChild);
             
@@ -96,11 +98,13 @@
             }
             
             for(var i = 0; i < this.invaders.length; ++i){
-                this.invaders[i].update();
                 
                 if(checkCollision(this.invaders[i], this.player)) this.gameOver('eaten alive')
                 
-                if(Math.random() < 0.0005 * this.invaders[i].health) this.invaders[i].shoot();
+                if(Math.random() < 0.0002 * this.invaders[i].health) this.invaders[i].shoot();
+                
+                
+                this.invaders[i].update();
             }
             
             for(var i = 0; i < this.bullets.length; ++i){
@@ -191,8 +195,8 @@
     }
     
     function Keys(){
-        this.values = ['shoot', 'left', 'up', 'right', 'down', 'info', 'pause', 'toggleTrailing'];
-        this.codes =  [32, 37, 38, 39, 40, 73, 80, 84];
+        this.values = ['shoot', 'left', 'up', 'right', 'down', 'info', 'pause', 'toggleTrailing', 'toggleSound'];
+        this.codes =  [32, 37, 38, 39, 40, 73, 80, 84, 75];
         this.binds = {}
         
         this.controls = document.getElementById('controls');
@@ -265,6 +269,7 @@
                 case 'pause': game.running ? game.pause() : game.resume(); break;
                 case 'info' : this.rebind(); break;
                 case 'toggleTrailing' : game.drawer.trailing = !game.drawer.trailing; break;
+                case 'toggleSound': game.sounds.toggle();
             }
         }
     }
@@ -278,10 +283,16 @@
         this.ctx.font = '14px Verdana';
         this.trailing = true;
         
+        this.tilt = 0;
+        
         this.imgs = {};
         this.imageSrcs = ['player', 'playerBullet', 'invaderBullet', 'heart', 'unfilledHeart'];
         
-        for(var i = 0; i < 5; ++i) this.imageSrcs.push('e' + i);
+        var enemySprites = 5,
+            explosionSprites = 2;
+        
+        for(var i = 0; i < enemySprites; ++i) this.imageSrcs.push('e' + i);
+        for(var i = 0; i < explosionSprites; ++i) this.imageSrcs.push('explosion' + i);
         for(var i = 0; i < game.upgradables.length; ++i) this.imageSrcs.push('U' + game.upgradables[i]);
         
         this.ready = 0;
@@ -289,7 +300,7 @@
         for(var i = 0; i < this.imageSrcs.length; ++i){
             var str = this.imageSrcs[i];
             this.imgs[str] = new Image();
-            this.imgs[str].src = str + '.png';
+            this.imgs[str].src = 'images/' + str + '.png';
             
             this.imgs[str].onload = this.upReady;
         }
@@ -303,6 +314,7 @@
         this.gameOverReasonEl = document.getElementById('gameOverReason');
         this.pauseEl = document.getElementById('pause');
         this.shockEl = document.getElementById('shock');
+        this.soundEl = document.getElementById('sound');
     };
     Drawer.prototype = {
         start: function(){
@@ -321,8 +333,23 @@
             }
         },
         draw: function(){
+            
+            this.tilt = game.explosions.length * 2 * (Math.random() - 0.5 );
+            
             this.ctx.fillStyle = 'rgba(0, 0, 0, '+(this.trailing ? '0.4' : '1')+')';
             this.ctx.fillRect(0, 0, game.ww, game.hh);
+            
+            this.ctx.translate(this.tilt, this.tilt);
+            
+            for(var i = 0; i < game.explosions.length; ++i){
+                
+                var expl = game.explosions[i];
+                this.ctx.drawImage(this.imgs['explosion' + (expl.frame | 0)], expl.pos.x, expl.pos.y);
+                
+                expl.frame += .1;
+                
+                if(expl.frame >= 2) game.explosions.splice(game.explosions.indexOf(expl), 1);
+            }
             
             for(var i = 0; i < game.invaders.length; ++i){
                 //this.ctx.fillStyle=this.colors[game.invaders[i].health%this.colors.length];
@@ -358,6 +385,8 @@
                 
                 this.healthEl.childNodes[i].src = i < game.player.health ? this.imgs.heart.src : this.imgs.unfilledHeart.src;
             }
+            
+            this.ctx.translate(-this.tilt, -this.tilt);
         },
         fillScreen: function(color){
             if(color) this.shockEl.style.setProperty('background-color', color);
@@ -394,6 +423,72 @@
             
             var self = this;
             window.setTimeout(function(){self.waveNameEl.classList.remove('display')}, 3000);
+        }
+    }
+    function Sounds(game){
+        this.sounds = {};
+        this.soundSrcs = ['enemyShoot0'];
+        
+        this.on = true;
+        
+        this.shootCount = 4;
+        for(var i = 0; i < this.shootCount; ++i) this.soundSrcs.push('shoot' + i);
+        
+        this.ctx = new (window.AudioContext || window.webkitAudioContext);
+        
+        function ret(request, num, self){
+            return function(){
+                
+                self.sounds[self.soundSrcs[num]] = request.response;
+                
+                self.ctx.decodeAudioData(request.response, function(buffer) {
+                
+                    self.sounds[self.soundSrcs[num]] = buffer;
+                });
+            }
+        }
+        
+        try{
+            for(var i = 0; i < this.soundSrcs.length; ++i){
+
+                var request = new XMLHttpRequest();
+                request.open('GET', 'sounds/' + this.soundSrcs[i] + '.mp3', true);
+                request.responseType = 'arraybuffer';
+
+                request.onload = ret(request, i, this);
+
+                request.send();
+
+            }
+        }catch(e){
+            this.on = false;
+            this.toggle = function(){};
+        }
+    }
+    Sounds.prototype = {
+        play: function(sound){
+            if(!this.on) return;
+            
+            var sound = this.sounds[sound] || sound;
+            var source = this.ctx.createBufferSource();
+            source.buffer = sound;
+            source.connect(this.ctx.destination);
+            source.start(0);
+        },
+        toggle: function(){
+            this.on = !this.on;
+            
+            game.drawer.soundEl.src = this.on ? 'soundOn.png' : 'soundOff.png';
+            
+            game.drawer.soundEl.classList.add('display');
+            
+            setTimeout(function(){game.drawer.soundEl.classList.remove('display');}, 2000)
+        },
+        playerShoot: function(){
+            this.play('shoot'+((Math.random()*this.shootCount)|0));
+        },
+        enemyShoot: function(){
+            this.play('enemyShoot0');
         }
     }
     
@@ -461,6 +556,8 @@
                     this.pos.y += this.power * this.bulletsCount * this.bulletSpeed;
                     
                     this.shootTime = this.shootVel;
+                    
+                    game.sounds.playerShoot();
                 }
             }else this.shootTime -= this.shootSpeed;
         }
@@ -487,6 +584,8 @@
         update: function(){
             if(this.health <= 0){
                 game.waits += 1;
+                game.explosions.push(new Explosion(this.pos.x - 5, this.pos.y - 5));
+                
                 return game.invaders.splice(game.invaders.indexOf(this), 1);
             }
             if(this.pos.y > game.hh) game.gameOver('invaders be invading!');
@@ -502,6 +601,8 @@
             for(var i = 1; i <= this.bulletCount; ++i){
                 game.bullets.push(new Bullet(this, 1, Math.cos(section * i), Math.sin(section * i), this.power, this.pierce));
             }
+            
+            game.sounds.enemyShoot();
         }
     }
     function Upgrade(parent){
@@ -522,7 +623,7 @@
         },
         use:function(){
             var img=document.createElement('img');
-            img.src='U'+this.type+'.png';
+            img.src='images/U'+this.type+'.png';
             game.drawer.upgradesEl.appendChild(img);
             
             game.drawer.upgrade();
@@ -584,15 +685,25 @@
             }
         }
     }
+    function Explosion(x, y){
+        this.pos = new Vec(x, y);
+        this.frame = 0;
+    }
+    
+    
     function checkBoundings(b){
         if(b.pos.x < 0 || b.pos.x + b.size.w > game.ww) return 'x';
         if(b.pos.y < 0 || b.pos.y + b.size.h > game.hh) return 'y';
         return false;
     }
     function checkCollision(b1, b2){
-        return !(b1.pos.x + b1.size.w < b2.pos.x ||
-                 b1.pos.y + b1.size.h < b2.pos.y ||
-                 b1.pos.y > b2.pos.y + b2.size.h ||
-                 b1.pos.x > b2.pos.x + b2.size.w)
+        try{
+            return !(b1.pos.x + b1.size.w < b2.pos.x ||
+                     b1.pos.y + b1.size.h < b2.pos.y ||
+                     b1.pos.y > b2.pos.y + b2.size.h ||
+                     b1.pos.x > b2.pos.x + b2.size.w)
+        }catch(e){
+            return false;
+        }
     }
 })()
