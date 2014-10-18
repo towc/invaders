@@ -23,43 +23,13 @@
         this.updateMs = 8;
         
         this.waves = [
-            {
-                width: 8,
-                height: 3,
-                padding: 20,
-                vx: 1,
-                vy: 0.5
-            },{
-                width: 8,
-                height: 4,
-                padding: 30,
-                vx: 0.8,
-                vy: 0.5
-            },{
-                width: 10,
-                height: 5,
-                padding: 15,
-                vx: 0.5,
-                vy: 0.3
-            },{
-                width: 20,
-                height: 5,
-                padding: 15,
-                vx: 0.3,
-                vy: 0.1
-            },{
-                width: 20,
-                height: 5,
-                padding: 15,
-                vx: 0.5,
-                vy: 0.3
-            },{
-                width: 30,
-                height: 5,
-                padding: 15,
-                vx: 0.8,
-                vy: 0.5
-            }
+            //name, width, height, padding, vx, vy, healthAdd
+            ['beginners', 15, 2, 20, 1, 0.3, false],
+            ['cheesy', 20, 3, 25, 1.2, 0.3, 2],
+            ['unicorns', 10, 5, 15, 1, 0.3, 1],
+            ['ducks', 20, 5, 15, 2, 0.3, 2],
+            ['chuck norris', 20, 5, 15, 0.5, 0.3, 1],
+            ['The Lemon', 30, 5, 15, 0.8, 0.5, 1]
         ];
         
         this.upgradables=['shootSpeed', 'bulletsCount', 'power', 'bulletSpeed', 'pierce', 'health', 'speed'];
@@ -75,24 +45,30 @@
             this.bullets = [];
             this.upgrades = [];
             
-            while(this.drawer.upgrades.firstChild) this.drawer.upgrades.removeChild(this.drawer.upgrades.firstChild);
+            while(this.drawer.upgradesEl.firstChild) this.drawer.upgradesEl.removeChild(this.drawer.upgradesEl.firstChild);
             
             this.lastTick = Date.now();
             
-            this.inWave = false;
+            this.inWave = true;
             this.currWave = 0;
             
             this.running = loop;
             
+            this.waits = 0;
+            
             this.tick();
         },
         tick: function(){
-            if(this.running) window.requestAnimationFrame(this.tick.bind(this));
+            
+            var self = this;
+            
+            if(this.running) setTimeout(function(){window.requestAnimationFrame(self.tick.bind(self))}, self.waits * 20);
             else return;
+            
             var currTick = Date.now();
             var elapsedTime = currTick-this.lastTick;
             
-            if(elapsedTime > this.updateMs * 100) return this.pause();
+            if(elapsedTime > this.updateMs * 100 + 20 * this.waits) return this.pause();
             
             while(elapsedTime - this.updateMs > 0){
                 elapsedTime -= this.updateMs;
@@ -100,15 +76,23 @@
             }
             this.render();
             
+            this.waits = 0;
+            
             this.lastTick = currTick - elapsedTime;
         },
         update: function(){
             this.player.update();
             
-            if(this.invaders.length < 1){
+            if(this.invaders.length < 1 && this.inWave){
                 if(this.currWave) this.upgrades.push(new Upgrade({pos: {x: game.ww/2, y: 0}}))
                 
-                this.genWave(this.currWave);
+                this.inWave = false;
+                
+                this.drawer.genWave();
+                
+                var self = this;
+                
+                setTimeout(function(){self.genWave(self.currWave);}, 2000);
             }
             
             for(var i = 0; i < this.invaders.length; ++i){
@@ -116,7 +100,7 @@
                 
                 if(checkCollision(this.invaders[i], this.player)) this.gameOver('eaten alive')
                 
-                if(Math.random() < 0.0005) this.invaders[i].shoot();
+                if(Math.random() < 0.0005 * this.invaders[i].health) this.invaders[i].shoot();
             }
             
             for(var i = 0; i < this.bullets.length; ++i){
@@ -160,27 +144,32 @@
         },
         genWave:function(ind){
             var wave = this.waves[ind];
+            var width = wave[1],
+                height = wave[2],
+                padding = wave[3],
+                vx = wave[4],
+                vy = wave[5],
+                healthAdd = wave[6];
             
-            var waveStart = wave.padding * wave.height,
-                totWidth = wave.width * wave.padding;
+            var waveStart = padding * height,
+                totWidth = width * padding;
             
-            for(var i = 0; i < wave.width; ++i){
-                for(var j = 0; j < wave.height; ++j){
+            for(var i = 0; i < width; ++i){
+                for(var j = 0; j < height; ++j){
                     
                     var invader=new Invader(this,
-                                            10 + i * wave.padding,                          //x
-                                            j * wave.padding - waveStart,                   //y
-                                            wave.vx, wave.vy,                               //vx, vy
-                                            this.ww - totWidth - 20, 20, wave.height - j,   //invertX and Y
+                                            10 + i * padding,                          //x
+                                            j * padding - waveStart,                   //y
+                                            vx, vy,                               //vx, vy
+                                            healthAdd ? ((height - j) / healthAdd) | 0 + 1 : 1,         //health
                                             1, 1, 1);                                       //power, bulletCount, pierce
                     
                     this.invaders.push(invader);
-                    invader.pos.x += invader.invertX - 1;
-                    invader.patrolX = invader.invertX - 1;
                 }
             }
             
             this.inWave = true;
+            
             if(this.currWave < this.waves.length) this.currWave = ind + 1;
         },
         pause: function(){
@@ -305,15 +294,21 @@
             this.imgs[str].onload = this.upReady;
         }
         
-        this.wave = document.getElementById('wave');
-        this.health = document.getElementById('health');
-        this.upgrades = document.getElementById('upgrades');
+        this.waveEl = document.getElementById('wave');
+        this.healthEl = document.getElementById('health');
+        this.upgradesEl = document.getElementById('upgrades');
+        
+        this.waveNameEl = document.getElementById('waveName');
+        this.gameOverEl = document.getElementById('gameOver');
+        this.gameOverReasonEl = document.getElementById('gameOverReason');
+        this.pauseEl = document.getElementById('pause');
+        this.shockEl = document.getElementById('shock');
     };
     Drawer.prototype = {
         start: function(){
             for(var i = 0; i < game.player.max.health; ++i){
                 var img = document.createElement('img');
-                this.health.appendChild(img);
+                this.healthEl.appendChild(img);
             }
         },
         upReady: function(){
@@ -357,59 +352,48 @@
                 this.ctx.drawImage(game.bullets[i].isInvader ? this.imgs.invaderBullet : this.imgs.playerBullet, game.bullets[i].pos.x|0, game.bullets[i].pos.y|0);
             }
             
-            this.wave.textContent = game.currWave;
+            this.waveEl.textContent = game.currWave;
             
-            if(this.health.childNodes.length > 0) for(var i = 0; i < game.player.max.health; ++i){
+            if(this.healthEl.childNodes.length > 0) for(var i = 0; i < game.player.max.health; ++i){
                 
-                this.health.childNodes[i].src = i < game.player.health ? this.imgs.heart.src : this.imgs.unfilledHeart.src;
+                this.healthEl.childNodes[i].src = i < game.player.health ? this.imgs.heart.src : this.imgs.unfilledHeart.src;
             }
         },
         fillScreen: function(color){
-            if(color) this.ctx.fillStyle=color;
-            this.ctx.fillRect(0, 0, game.ww, game.hh);
+            if(color) this.shockEl.style.setProperty('background-color', color);
+            this.shockEl.classList.add('display');
+            
+            var self = this;
+            
+            window.setTimeout(function(){self.shockEl.classList.remove('display')}, 50)
         },
         pause: function(){
-            this.fillScreen('rgba(10, 40, 10, 0.4)');
+            this.pauseEl.classList.add('display');
             
-            this.ctx.fillStyle = 'white';
-            
-            this.ctx.font = '12px Verdana';
-            this.ctx.fillText('P to resume, I for info', game.ww/2 - this.ctx.measureText('P to resume, I for info').width/2, game.hh/2 + 5);
-            
-            this.ctx.font = '14px Verdana';
-            this.ctx.fillText('Paused', game.ww/2 - this.ctx.measureText('Paused').width/2, game.hh/2 - 20);
         },
         resume: function(){
-            this.fillScreen('black');
+            this.pauseEl.classList.remove('display');
+            this.gameOverEl.classList.remove('display');
+            
         },
         hurt: function(){
-            this.fillScreen('rgba(255, 0, 0, 0.8)');
+            this.fillScreen('red');
+            
         },
         upgrade: function(){
-            this.fillScreen('rgba(0, 255, 0, 0.3)');
+            this.fillScreen('green');
+            
         },
         gameOver: function(reason){
-            this.fillScreen('rgba(127, 0, 0, 0.5)');
+            this.gameOverEl.classList.add('display');
+            this.gameOverReasonEl.textContent = reason;                
+        },
+        genWave: function(){
+            this.waveNameEl.classList.add('display');
+            this.waveNameEl.textContent = game.waves[game.currWave][0];
             
-            this.ctx.font = '20px Verdana';
-            var gameOverWidth = this.ctx.measureText('Game Over!').width;
-            
-            this.ctx.font = '13px Verdana';
-            var reasonWidth = this.ctx.measureText(reason).width;
-            
-            var width = Math.max(gameOverWidth, reasonWidth);
-            
-            this.ctx.fillRect(game.ww/2 - width/2 - 20, game.hh/2 - 30, width + 40, 60);
-            
-            this.ctx.fillStyle='white';
-            
-            this.ctx.font='20px Verdana';
-            this.ctx.fillText('Game Over!', game.ww/2 - gameOverWidth/2, game.hh/2 - 5);
-            
-            this.ctx.font='13px Verdana';
-            this.ctx.fillText(reason, game.ww/2 - reasonWidth/2, game.hh/2 + 15);
-            
-            this.ctx.font='14px Verdana';                  
+            var self = this;
+            window.setTimeout(function(){self.waveNameEl.classList.remove('display')}, 3000);
         }
     }
     
@@ -426,9 +410,9 @@
         
         this.shootTime = 0;
         this.shootVel = 100;
-        this.shootSpeed = 1.2;
+        this.shootSpeed = 7;
         
-        this.speed=1.2;
+        this.speed=2;
         
         this.bulletsCount = 1;
         this.power = 1;
@@ -465,16 +449,25 @@
             
             if(this.shootTime <= 0){
                 if(game.keys.shoot){
+                    
                     var section = Math.PI / (this.bulletsCount + 1);
-                    for(var i = 1; i <= this.bulletsCount; ++i) game.bullets.push(new Bullet(this, 0, Math.cos(section * i) * this.bulletSpeed, Math.sin(Math.PI + section * i) * this.bulletSpeed, this.power, this.pierce));
+                    
+                    for(var i = 1; i <= this.bulletsCount; ++i) game.bullets.push(
+                        new Bullet(this, 0,
+                                   Math.cos(section * i) * this.bulletSpeed + Math.random()/2-0.25 + this.vel.x / 10,
+                                   Math.sin(Math.PI + section * i) * this.bulletSpeed + this.vel.y / 10,
+                                   this.power, this.pierce));
+                    
+                    this.pos.y += this.power * this.bulletsCount * this.bulletSpeed;
+                    
                     this.shootTime = this.shootVel;
                 }
             }else this.shootTime -= this.shootSpeed;
         }
     }
-    function Invader(game, x, y, vx, vy, invertX, invertY, health, bulletCount, pierce, power){
+    function Invader(game, x, y, vx, vy, health, bulletCount, pierce, power){
         this.pos = new Vec(x, y);
-        this.vel = new Vec(vx, 0);
+        this.vel = new Vec(vx, vy);
         
         this.vx = vx; this.vy = vy;
         
@@ -482,12 +475,6 @@
         
         this.vel.link(this.pos);
         
-        this.patrolX = 0;
-        this.patrolY = 0;
-        this.invertX = invertX;
-        this.invertY = invertY;
-        
-        this.dir = 1;
         this.health = health;
         
         this.bulletCount = bulletCount;
@@ -498,21 +485,14 @@
     }
     Invader.prototype = {
         update: function(){
-            if(this.health <= 0) return game.invaders.splice(game.invaders.indexOf(this), 1);
+            if(this.health <= 0){
+                game.waits += 1;
+                return game.invaders.splice(game.invaders.indexOf(this), 1);
+            }
             if(this.pos.y > game.hh) game.gameOver('invaders be invading!');
             
-            this.patrolX += this.vel.x;
-            this.patrolY += this.vel.y;
-            
-            if(this.patrolX >= this.invertX || this.patrolX < 0){
-                this.vel.x = 0;
-                this.vel.y = this.vy;
-            }
-            if(this.patrolY >= this.invertY){
-                this.dir *= -1;
-                this.vel.x = this.dir * this.vx;
-                this.vel.y = 0;
-                this.patrolY = 0;
+            if(this.pos.x < 0 || this.pos.x + this.size.w > game.ww){
+                this.vel.x *= -1;
             }
             
             this.vel.update();
@@ -543,7 +523,7 @@
         use:function(){
             var img=document.createElement('img');
             img.src='U'+this.type+'.png';
-            game.drawer.upgrades.appendChild(img);
+            game.drawer.upgradesEl.appendChild(img);
             
             game.drawer.upgrade();
             
@@ -563,8 +543,8 @@
         this.pos = new Vec(parent.pos.x + parent.size.w/2, parent.pos.y + parent.size.h/2);
         this.vel = new Vec(vx, vy);
         
-        this.size = {w: 3, h: 5};
-        
+        this.size = isInvader ? {w: 3, h: 5} : {w: 5, h: 7};
+    
         this.vel.link(this.pos);
     }
     Bullet.prototype = {
