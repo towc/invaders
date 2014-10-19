@@ -209,7 +209,7 @@
     
     function Keys(){
         this.values = ['shoot', 'left', 'up', 'right', 'down', 'info', 'pause', 'toggleTrailing', 'toggleSound', 'shootBomb'];
-        this.codes =  [32,      37,     38,   39,      40,     73,     80,      84,               75,            66];
+        this.codes =  [32,      37,     38,   39,      40,     73,     80,      84,               76,            66];
         this.binds = {}
         
         this.controls = document.getElementById('controls');
