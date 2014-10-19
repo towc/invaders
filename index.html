@@ -20,9 +20,9 @@
     </div>
     <div id=waveName>Beginner</div>
     <div id=shock></div>
-    <div id=hint>Press I for information</div>
     <div id=error></div>
     <div id=controls>
+        <p><span><b>VOLUME</b></span><span>0<input id=volume type=range min=0 max=1 step=0.01>1</span></p>
         <h1>info</h1>
         <p><span>up</span><span>UP KEY</span></p>
         <p><span>left</span><span>LEFT KEY</span></p>
@@ -44,6 +44,17 @@
         <p><span>shoot ratio</span><span><img src=images/UshootSpeed.png></span></p>
     </div>
     <img id=sound src=soundOn.png>
+    <div id=starting class=display>
+        <h1>Rules</h1>
+        <ul>
+            <li>Press arrow keys to move your spaceship (<img src=images/player.png height=20>)</li>
+            <li>Avoid the other's spaceships' bullets. Try not to hit them directly and to not make them reach the bottom</li>
+            <li>Kill the invaders (<img src=images/e0.png height=20>) with your bullets (<img src=images/playerBullet.png height=20>), by pressing spacebar, or by throwing bombs (<img src=images/bomb.png height=20>), by pressing B</li>
+            <li>The different colors of the invaders (like <img src=images/e1.png height=20><img src=images/e2.png height=20><img src=images/e3.png height=20>) show the amount of health they have</li>
+            <li>Your health (<img src=images/heart.png height=20>) and the wave count are in the bottom bar, aswell as the upgrades you managed to get (<img src=images/UbulletsCount.png height=20>), which are dropped by the invaders when hit</li>
+            <li>A list of all the commands and upgrades can be seen by pressing I, aswell as a volume control. Press P to start playing</li>
+        </ul>
+    </div>
     <script src=scripts.js></script>
 </body>
 </html>

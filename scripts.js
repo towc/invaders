@@ -330,6 +330,7 @@
         this.shockEl = document.getElementById('shock');
         this.soundEl = document.getElementById('sound');
         this.errorEl = document.getElementById('error');
+        this.startingEl = document.getElementById('starting');
     };
     Drawer.prototype = {
         start: function(){
@@ -342,12 +343,14 @@
             ++game.drawer.ready;
             if(game.drawer.ready === game.drawer.imageSrcs.length){
                 
-                game.start(true);
+                game.start(false);
                 
                 game.drawer.start();
             }
         },
         draw: function(){
+            
+            game.sounds.volume.gain.value = game.sounds.volumeEl.value*1;
             
             this.tilt = game.explosions.length * 2 * (Math.random() - 0.5 );
             
@@ -420,7 +423,9 @@
         resume: function(){
             this.pauseEl.classList.remove('display');
             this.gameOverEl.classList.remove('display');
+            this.startingEl.classList.remove('display');
             
+            game.sounds.volumeEl.blur();
         },
         hurt: function(){
             this.fillScreen('red');
@@ -451,18 +456,24 @@
         }
     }
     function Sounds(game){
+        
+        this.ctx = new (window.AudioContext || window.webkitAudioContext);
+        
         this.sounds = {};
         this.soundSrcs = ['enemyShoot0'];
         
         this.on = true;
+        this.volume = this.ctx.createGain();
+        this.volume.gain.value = 0.3;
+        this.volume.connect(this.ctx.destination);
+        
+        this.volumeEl = document.getElementById('volume');
         
         this.shootCount = 4;
         this.explodeCount = 2;
         
         for(var i = 0; i < this.shootCount; ++i) this.soundSrcs.push('shoot' + i);
         for(var i = 0; i < this.explodeCount; ++i) this.soundSrcs.push('explosion' + i);
-        
-        this.ctx = new (window.AudioContext || window.webkitAudioContext);
         
         function ret(request, num, self){
             return function(){
@@ -500,7 +511,7 @@
             var sound = this.sounds[sound] || sound;
             var source = this.ctx.createBufferSource();
             source.buffer = sound;
-            source.connect(this.ctx.destination);
+            source.connect(this.volume);
             source.start(0);
         },
         toggle: function(){
