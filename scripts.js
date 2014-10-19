@@ -64,13 +64,15 @@
             
             var self = this;
             
-            if(this.running) setTimeout(function(){window.requestAnimationFrame(self.tick.bind(self))}, self.waits * 20);
+            if(this.running) setTimeout(function(){window.requestAnimationFrame(self.tick.bind(self))}, self.waits * 30);
             else return;
             
             var currTick = Date.now();
             var elapsedTime = currTick-this.lastTick;
             
-            if(elapsedTime > this.updateMs * 100 + 20 * this.waits) return this.pause();
+            elapsedTime -= this.waits * 30;
+            
+            if(elapsedTime > this.updateMs * 100) return this.pause();
             
             while(elapsedTime - this.updateMs > 0){
                 elapsedTime -= this.updateMs;
@@ -432,7 +434,10 @@
         this.on = true;
         
         this.shootCount = 4;
+        this.explodeCount = 2;
+        
         for(var i = 0; i < this.shootCount; ++i) this.soundSrcs.push('shoot' + i);
+        for(var i = 0; i < this.explodeCount; ++i) this.soundSrcs.push('explosion' + i);
         
         this.ctx = new (window.AudioContext || window.webkitAudioContext);
         
@@ -489,6 +494,9 @@
         },
         enemyShoot: function(){
             this.play('enemyShoot0');
+        },
+        explode: function(){
+            this.play('explosion'+((Math.random()*this.explodeCount)|0));
         }
     }
     
@@ -585,6 +593,7 @@
             if(this.health <= 0){
                 game.waits += 1;
                 game.explosions.push(new Explosion(this.pos.x - 5, this.pos.y - 5));
+                game.sounds.explode();
                 
                 return game.invaders.splice(game.invaders.indexOf(this), 1);
             }
